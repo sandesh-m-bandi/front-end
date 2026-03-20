@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-start: #0d47a1;
+            --bg-end: #1e3a8a;
+            --card: rgba(255, 255, 255, 0.92);
+            --shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+            --primary: #2b6cb0;
+            --primary-2: #0097a7;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --muted: #7f8c8d;
+            --radius: 20px;
+            --border: rgba(255, 255, 255, 0.35);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            color: #1f2937;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at top, rgba(255, 255, 255, 0.18), transparent 55%),
+                        radial-gradient(circle at bottom, rgba(255, 255, 255, 0.1), transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .dashboard-container {
+            max-width: 1240px;
+            margin: 2.75rem auto 4rem;
+            padding: 2.5rem;
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-container::before {
+            content: '';
+            position: absolute;
+            width: 560px;
+            height: 560px;
+            top: -220px;
+            right: -240px;
+            background: radial-gradient(circle, rgba(255,255,255,0.35), transparent 55%);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-header h2 {
+            font-size: 3rem;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard-header p {
+            font-size: 1.1rem;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .dashboard-meta {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-meta .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            font-size: 0.9rem;
+            color: #1f2937;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        .dashboard-meta .badge span {
+            font-weight: 700;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: transform 0.35s ease, box-shadow 0.35s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: -35%;
+            width: 180%;
+            height: 180%;
+            background: radial-gradient(circle at top, rgba(255, 255, 255, 0.45), transparent 55%);
+            transform: rotate(45deg);
+            pointer-events: none;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 22px 45px rgba(0, 0, 0, 0.18);
+        }
+
+        .stat-card.total::before { background: linear-gradient(90deg, #9b59b6, #8e44ad); }
+        .stat-card.present::before { background: linear-gradient(90deg, #2ecc71, #16a085); }
+        .stat-card.absent::before { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+        }
+
+        .stat-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.85;
+        }
+
+        .stat-card h3 {
+            font-size: 2.8rem;
+            margin: 0;
+            color: #1f2937;
+            font-weight: 700;
+        }
+
+        .stat-card p {
+            font-size: 1.1rem;
+            color: var(--muted);
+            margin: 0.5rem 0 0;
+            font-weight: 500;
+        }
+
+        .chart-section {
+            position: relative;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 2.25rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 2.5rem;
+            overflow: hidden;
+        }
+
+        .chart-section::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -60px;
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle, rgba(46, 204, 113, 0.25), transparent 55%);
+            filter: blur(40px);
+            pointer-events: none;
+        }
+
+        .chart-section h3 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 320px;
+        }
+
+        #chart {
+            max-width: 100%;
+            height: 100% !important;
+        }
+
+        .table-section {
+            background: rgba(255, 255, 255, 0.92);
+            padding: 2.25rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 2.5rem;
+            overflow-x: auto;
+        }
+
+        .table-section h3 {
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 1rem;
+        }
+
+        th, td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+
+        th {
+            background: rgba(240, 248, 255, 0.9);
+            color: #1f2937;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(236, 248, 255, 0.6);
+        }
+
+        tr:hover {
+            background: rgba(47, 128, 237, 0.15);
+            transition: background 0.2s ease;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.85rem 1.75rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+        }
+
+        .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            border-top-color: rgba(255, 255, 255, 1);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .btn.loading .btn-spinner {
+            display: inline-block;
+        }
+
+        .btn.loading .btn-text {
+            opacity: 0.6;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(42, 140, 216, 0.45);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.35);
+            color: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.12);
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-container {
+                margin: 1.75rem 1rem 3rem;
+                padding: 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                margin: 1.25rem 0.75rem 2rem;
+                padding: 1.75rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">
+            <i class="fas fa-camera"></i>
+            FaceAttend
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/"><i class="fas fa-home"></i> Home</a>
+            <a href="/register"><i class="fas fa-user-plus"></i> Register</a>
+            <a href="/attendance"><i class="fas fa-play-circle"></i> Attendance</a>
+            <a href="/dashboard"><i class="fas fa-chart-bar"></i> Dashboard</a>
+        </div>
+        <div class="hamburger" id="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h2><i class="fas fa-chart-line"></i> Attendance Dashboard</h2>
+            <p>Real-time insights into today's attendance data</p>
+            <div class="dashboard-meta">
+                <span class="badge"><i class="fas fa-sync-alt"></i> Last updated <span id="lastUpdated">--</span></span>
+                <span class="badge"><i class="fas fa-clock"></i> Auto-refresh every 30s</span>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <h3 id="total">0</h3>
+                <p>Total Students</p>
+            </div>
+            <div class="stat-card present">
+                <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                <h3 id="present">0</h3>
+                <p>Present Today</p>
+            </div>
+            <div class="stat-card absent">
+                <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                <h3 id="absent">0</h3>
+                <p>Absent Today</p>
+            </div>
+        </div>
+        
+        <div class="chart-section">
+            <h3><i class="fas fa-chart-pie"></i> Attendance Overview</h3>
+            <canvas id="chart"></canvas>
+        </div>
+        
+        <div class="table-section">
+            <h3><i class="fas fa-list"></i> Present Students</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-id-card"></i> Student ID</th>
+                        <th><i class="fas fa-user"></i> Name</th>
+                        <th><i class="fas fa-building"></i> Department</th>
+                        <th><i class="fas fa-clock"></i> Time</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTable"></tbody>
+            </table>
+        </div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" id="refreshBtn" onclick="refreshDashboard()">
+                <span class="btn-icon"><i class="fas fa-sync-alt"></i></span>
+                <span class="btn-text">Refresh</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+            <button class="btn btn-secondary" onclick="exportCSV()">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script>
+        let chart;
+        let isRefreshing = false;
+
+        async function refreshDashboard() {
+            if (isRefreshing) return; // Prevent concurrent refreshes
+            isRefreshing = true;
+            
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.classList.add('loading');
+            refreshBtn.disabled = true;
+
+            try {
+                // Get stats
+                const stats = await fetchJSON(`${API_BASE}/attendance/stats`);
+                document.getElementById('total').innerText = stats.total || 0;
+                document.getElementById('present').innerText = stats.present || 0;
+                document.getElementById('absent').innerText = stats.absent || 0;
+
+                const now = new Date();
+                document.getElementById('lastUpdated').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                // Update chart
+                if (chart) chart.destroy();
+                const ctx = document.getElementById('chart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Present', 'Absent'],
+                        datasets: [{
+                            data: [stats.present || 0, stats.absent || 0],
+                            backgroundColor: ['#27ae60', '#e74c3c'],
+                            borderWidth: 0,
+                            hoverBorderWidth: 5,
+                            hoverBorderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Get today's attendance list
+                const list = await fetchJSON(`${API_BASE}/attendance/today`);
+                const tbody = document.getElementById('attendanceTable');
+                tbody.innerHTML = '';
+                if (list && list.length > 0) {
+                    list.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.student_id || 'N/A'}</td>
+                            <td>${row.name || 'N/A'}</td>
+                            <td>${row.department || 'N/A'}</td>
+                            <td>${row.time || 'N/A'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: #7f8c8d;">No attendance records for today yet.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+                // Show error message in UI
+                const tbody = document.getElementById('attendanceTable');
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem; color: #e74c3c;">Error loading data. Please try again.</td></tr>';
+            } finally {
+                refreshBtn.classList.remove('loading');
+                refreshBtn.disabled = false;
+                isRefreshing = false;
+            }
+        }
+
+        function exportCSV() {
+            const rows = [...document.querySelectorAll('#attendanceTable tr')].map(tr =>
+                [...tr.children].map(td => td.innerText).join(',')
+            );
+            if (rows.length === 0) {
+                alert('No data to export.');
+                return;
+            }
+            const csv = ['Student ID,Name,Department,Time', ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initial load
+        refreshDashboard();
+        // Auto refresh every 30 seconds
+        setInterval(refreshDashboard, 30000);
+    </script>
+    <script>
+        // Hamburger menu toggle
+        const hamburger = document.getElementById('hamburger');
+        const navLinks = document.getElementById('navLinks');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        });
+
+        // Close mobile menu when clicking a link
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+</html>

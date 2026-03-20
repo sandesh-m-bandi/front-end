@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Attendance</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #4ecdc4;
+            --warning: #ff6b6b;
+            --dark: #2c3e50;
+            --light: #f8f9fa;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+            --border-radius: 20px;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.03"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.03"/><circle cx="50" cy="50" r="2" fill="%23ffffff" opacity="0.02"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .attendance-main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .video-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .video-section h2 {
+            color: var(--dark);
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 160px;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--warning), #ee5a24);
+            color: white;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .video-card {
+            position: relative;
+            display: inline-block;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            margin: 0 auto;
+            max-width: 100%;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 5px;
+        }
+
+        .video-card-inner {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #video {
+            display: block;
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        #overlay {
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            pointer-events: none;
+            border-radius: 10px;
+        }
+
+        .status-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            height: fit-content;
+            /* sticky: top 100px; */
+        }
+
+        .status-panel h3 {
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .status-item {
+            background: var(--light);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .status-item.success {
+            border-left-color: var(--success);
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(78, 205, 196, 0.05));
+        }
+
+        .status-item.warning {
+            border-left-color: var(--warning);
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(255, 107, 107, 0.05));
+        }
+
+        .status-item i {
+            margin-right: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .status-item strong {
+            color: var(--dark);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .face-detected {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(78, 205, 196, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(78, 205, 196, 0); }
+        }
+
+        .floating-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-element:nth-child(1) {
+            width: 100px;
+            height: 100px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-element:nth-child(2) {
+            width: 80px;
+            height: 80px;
+            top: 30%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .floating-element:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        @media (max-width: 768px) {
+            .attendance-main {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .status-panel {
+                position: static;
+            }
+            .video-section h2 {
+                font-size: 2rem;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            .btn {
+                min-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="floating-element"></div>
+        <div class="floating-element"></div>
+        <div class="floating-element"></div>
+    </div>
+
+    <nav>
+        <a href="/" class="nav-brand">
+            <i class="fas fa-camera"></i>
+            FaceAttend
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/"><i class="fas fa-home"></i> Home</a>
+            <a href="/register"><i class="fas fa-user-plus"></i> Register</a>
+            <a href="/attendance"><i class="fas fa-play-circle"></i> Attendance</a>
+            <a href="/dashboard"><i class="fas fa-chart-bar"></i> Dashboard</a>
+        </div>
+        <div class="hamburger" id="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+
+    <div class="attendance-main">
+        <div class="video-section">
+            <h2><i class="fas fa-video"></i> Live Attendance</h2>
+            <div class="controls">
+                <button id="startBtn" class="btn btn-primary">
+                    <i class="fas fa-play"></i> Start Camera
+                </button>
+                <button id="stopBtn" class="btn btn-danger" disabled>
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+            </div>
+            <div class="video-card">
+                <div class="video-card-inner">
+                    <video id="video" autoplay></video>
+                    <canvas id="overlay"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <h3><i class="fas fa-info-circle"></i> Status</h3>
+            <div id="cameraStatus" class="status-item warning">
+                <i class="fas fa-camera"></i>
+                <strong>Camera:</strong> <span id="cameraState">Not Started</span>
+            </div>
+            <div id="detectionStatus" class="status-item">
+                <i class="fas fa-user-check"></i>
+                <strong>Detection:</strong> <span id="detectionState">Waiting...</span>
+            </div>
+            <div id="recognized" class="status-item success" style="display: none;">
+                <i class="fas fa-check-circle"></i>
+                <strong>Recognized:</strong> <span id="recognizedNames"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const recognizedDiv = document.getElementById('recognized');
+        const recognizedNames = document.getElementById('recognizedNames');
+        const cameraState = document.getElementById('cameraState');
+        const detectionState = document.getElementById('detectionState');
+        let streaming = false;
+        let interval = null;
+
+        document.getElementById('startBtn').onclick = async () => {
+            const btn = document.getElementById('startBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span> Starting...';
+            btn.disabled = true;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                streaming = true;
+                cameraState.textContent = 'Active';
+                cameraState.parentElement.className = 'status-item success';
+                document.getElementById('stopBtn').disabled = false;
+                startProcessing();
+            } catch (err) {
+                alert('Camera access denied or not available.');
+                cameraState.textContent = 'Access Denied';
+                cameraState.parentElement.className = 'status-item warning';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        document.getElementById('stopBtn').onclick = () => {
+            if (interval) clearInterval(interval);
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            streaming = false;
+            cameraState.textContent = 'Stopped';
+            cameraState.parentElement.className = 'status-item warning';
+            detectionState.textContent = 'Waiting...';
+            recognizedDiv.style.display = 'none';
+            document.getElementById('stopBtn').disabled = true;
+        };
+
+        function startProcessing() {
+            detectionState.textContent = 'Processing...';
+
+            interval = setInterval(async () => {
+                if (!streaming) return;
+
+                // Wait until the video dimensions are available
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                    detectionState.textContent = 'Waiting for camera...';
+                    return;
+                }
+
+                // Capture frame
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+
+                canvas.toBlob(async (blob) => {
+                    if (!blob) {
+                        console.warn('Canvas toBlob returned null; skipping frame.');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'frame.jpg');
+
+                    try {
+                        const res = await fetch(`${API_BASE}/process_frame`, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!res.ok) {
+                            const text = await res.text();
+                            throw new Error(`HTTP ${res.status}: ${text}`);
+                        }
+
+                        const data = await res.json();
+                        drawFaces(data.faces || [], canvas.width, canvas.height);
+                    } catch (err) {
+                        console.error('Error processing frame:', err);
+                        detectionState.textContent = 'Error - ' + (err.message || 'Check console');
+                    }
+                }, 'image/jpeg');
+            }, 1000);
+        }
+
+        function drawFaces(faces, videoWidth, videoHeight) {
+            overlay.width = videoWidth;
+            overlay.height = videoHeight;
+            const ctx = overlay.getContext('2d');
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+            if (faces.length > 0) {
+                detectionState.textContent = `${faces.length} face(s) detected`;
+                const names = faces.map(f => f.name || 'Unknown').join(', ');
+                recognizedNames.textContent = names;
+                recognizedDiv.style.display = 'block';
+                recognizedDiv.classList.add('face-detected');
+
+                faces.forEach(face => {
+                    ctx.strokeStyle = '#4ecdc4';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(face.x, face.y, face.width, face.height);
+                    ctx.shadowColor = '#4ecdc4';
+                    ctx.shadowBlur = 10;
+                });
+            } else {
+                detectionState.textContent = 'No faces detected';
+                recognizedDiv.style.display = 'none';
+                recognizedDiv.classList.remove('face-detected');
+            }
+        }
+
+        // Hamburger menu toggle
+        const hamburger = document.getElementById('hamburger');
+        const navLinks = document.getElementById('navLinks');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        });
+
+        // Close mobile menu when clicking a link
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            });
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+</html>
